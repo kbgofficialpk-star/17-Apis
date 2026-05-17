@@ -1,0 +1,61 @@
+from flask import Flask, request, jsonify
+import yt_dlp
+import os
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "KBG VIP SERVER IS LIVE"
+
+@app.route('/download', methods=['GET'])
+def download():
+    url = request.args.get('url')
+
+    if not url:
+        return jsonify({
+            "status": "error",
+            "message": "No URL provided"
+        }), 400
+
+    ydl_opts = {
+        'format': 'best',
+        'quiet': True,
+        'no_warnings': True,
+        'nocheckcertificate': True,
+        'user_agent': 'Mozilla/5.0'
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+
+            real_url = info.get('url')
+
+            if not real_url and 'entries' in info:
+                real_url = info['entries'][0].get('url')
+
+            if not real_url:
+                return jsonify({
+                    "status": "error",
+                    "message": "Could not find video link"
+                }), 404
+
+            return jsonify({
+                "status": "success",
+                "title": info.get("title"),
+                "thumbnail": info.get("thumbnail"),
+                "url": real_url
+            })
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+if __name__ == '__main__':
+    app.run(
+        host='0.0.0.0',
+        port=int(os.environ.get("PORT", 5000))
+    )
